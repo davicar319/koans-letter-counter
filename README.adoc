@@ -1,0 +1,20 @@
+= Letter Counter Koans
+
+This is a simple koans for Java and Groovy.  The intent is to create a method
+that consumes a string of arbitrary length and returns a map where the key is
+the lower case letter and the value is the number of instances of that letter
+found in the input string.
+
+
+|===
+|Example Input |Expected output
+
+|""
+|[:] - Empty Map
+
+|"a"
+|['a':1]
+
+|"aabcccc"
+| [a:2, b:1, c:4]
+|===
