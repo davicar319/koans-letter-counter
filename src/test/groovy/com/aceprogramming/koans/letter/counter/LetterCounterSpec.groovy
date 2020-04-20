@@ -5,7 +5,7 @@ import spock.lang.Unroll
 
 
 class LetterCounterSpec extends Specification {
-    def letterCounter = new LetterCounter()
+    def letterCounter = new LetterCounterBase()
 
     def "A LetterCounter can be created"() {
         expect:
