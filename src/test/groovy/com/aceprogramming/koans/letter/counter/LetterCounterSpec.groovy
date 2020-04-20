@@ -20,6 +20,10 @@ class LetterCounterSpec extends Specification {
         where:
         inputString | expectedResult
         ""          | [:]
-        "a"          | [((char)'a'):1]
+        "a"         | [((char)'a'):1]
+        "aa"        | [((char)'a'):2]
+        "aab"       | [((char)'a'):2, ((char)'b'):1]
+        "aabccc"    | [((char)'a'):2, ((char)'b'):1, ((char)'c'):3]
+        "cabcac"    | [((char)'a'):2, ((char)'b'):1, ((char)'c'):3]
     }
 }
