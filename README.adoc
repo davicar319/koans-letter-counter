@@ -1,3 +1,4 @@
+// suppress inspection "GrPackage" for whole file
 = Letter Counter Koans
 
 This is a simple koans for Java and Groovy.  The intent is to create a method
@@ -18,3 +19,172 @@ found in the input string.
 |"aabcccc"
 | [a:2, b:1, c:4]
 |===
+
+== First implementation - LetterCounterBase
+
+The first implementation that popped into my head was a pretty trivial for-loop based
+algorithm that loops through the string and stores the result in a `HashMap` named
+`result`: it looks like this:
+
+.LetterCounterBase.java
+[source,java]
+----
+public class LetterCounterBase {
+
+    public Map<Character, Integer> countUsage(String inputString) {
+
+        HashMap<Character, Integer> result = new HashMap<>();
+        for (int i = 0; i < inputString.length(); i++) {
+            char c = inputString.charAt(i);
+            if (result.containsKey(c)) {
+                result.put(c, result.get(c) + 1);
+            } else {
+                result.put(c, 1);
+            }
+        }
+        return result;
+    }
+}
+----
+
+Note at this point nulls are not handled, the code is a little more verbose than I would
+like, but for the most part it works.
+
+== Second implementation -- LetterCounterRefinement1
+
+At this point I decided to impement a second method that refines the first one and hopefully
+makes the code a bit more succinct. To do so I keep the loop, but realize that the if is
+taking up more vertical space than it deserves for its small space in the algorithm and
+the call to `result.put` is duplicated in the code.  So I extract an interface, since now
+I have two implementations that I'll want to test and implement the following class:
+
+.LetterCounterRefinement1.java
+[source,java]
+----
+package com.aceprogramming.koans.letter.counter;
+
+import java.util.HashMap;
+import java.util.Map;
+
+final class LetterCounterRefinement1 implements LetterCounter {
+    LetterCounterRefinement1() {
+    }
+
+    public Map<Character, Integer> countUsage(String inputString) {
+        HashMap<Character, Integer> result = new HashMap<>();
+        for (int i = 0; i < inputString.length(); i++) {
+            char c = inputString.charAt(i);
+            int count = result.containsKey(c) ? result.get(c) + 1 : 1;
+            result.put(c, count);
+        }
+        return result;
+    }
+}
+----
+
+In this implementation I realized that it was not the put that changed in the if, but
+the count that was being put into the `Map` so I changed the branch to only deal
+with that `count` and factored out the `result.put` onto its own line, which removed
+the duplication of the two calls to `result.put`.  The readability of the code also
+improves in that I can now clearly see that if the map already contains the letter
+then the count becomes 1 added to the existing value otherwise it just becomes 1. In
+both cases, the `Map` is updated.
+
+Because I now have a nice interface over the class I also implement the interface in my
+original class:
+
+.LetterCounterBase.java
+[source,java]
+----
+final class LetterCounterBase implements LetterCounter {
+
+    public Map<Character, Integer> countUsage(String inputString) {
+
+        HashMap<Character, Integer> result = new HashMap<>();
+        for (int i = 0; i < inputString.length(); i++) {
+            char c = inputString.charAt(i);
+            if (result.containsKey(c)) {
+                result.put(c, result.get(c) + 1);
+            } else {
+                result.put(c, 1);
+            }
+        }
+        return result;
+    }
+}
+----
+
+Note at this point I also make both classes final and package-protected.  Final because
+they will not be intentionally designed for extension, package-protected to keep them
+nicely hidden behind the interface.
+
+For completeness, here is what the interface looks like:
+
+.LetterCounter.java
+[source, java]
+----
+package com.aceprogramming.koans.letter.counter;
+
+import java.util.Map;
+
+public interface LetterCounter {
+    Map<Character, Integer> countUsage(String inputString);
+}
+----
+
+== But what about nulls?
+
+Just after doing this, I realized I missed a really simple test case in my spock test.
+I'm not checking for a null input.  I considered the empty string in my input, but never
+nulls.
+
+Noticing that the null case is not covered leads me to update my spock specification to
+include it:
+
+.LetterCounterSpec.groovy
+[source, groovy]
+----
+package com.aceprogramming.koans.letter.counter
+
+import spock.lang.Specification
+import spock.lang.Unroll
+
+
+class LetterCounterSpec extends Specification {
+    def letterCounters = [new LetterCounterBase(), new LetterCounterRefinement1()]
+
+
+    def "A LetterCounter can be created"() {
+        expect:
+        letterCounters.each {assert(it != null)}
+    }
+
+    @Unroll
+    def "Check counted letters for #inputString"(String inputString, Map expectedResult) {
+        expect:
+        letterCounters.each {assert(it.countUsage(inputString) == expectedResult)}
+
+        where:
+        inputString | expectedResult
+        ""          | [:]
+        "a"         | [((char)'a'):1]
+        "aa"        | [((char)'a'):2]
+        "aab"       | [((char)'a'):2, ((char)'b'):1]
+        "aabccc"    | [((char)'a'):2, ((char)'b'):1, ((char)'c'):3]
+        "cabcac"    | [((char)'a'):2, ((char)'b'):1, ((char)'c'):3]
+        null        | [:]
+    }
+}
+----
+
+As can be seen above I decided that null should be handled the same way that the empty
+String is an return back an empty map.  It could be argued that throwing (or continue to
+let be thrown) an exception would be better, since null could be considered invalid input.
+I have found that doing this when the result can be an empty container often leads to
+more bugs and confusion than just handling the null and returning the empty container.
+The argument against this is that it doesn't catch what could be a bug in the callers
+code, but I would rather have my code be more robust and trust that the caller does
+his or her testing as well.
+
+Adding in the test for null causes my test to fail with a `NullPointerException` because
+neither of my initial implementations handle null so its time to fix both of them.
