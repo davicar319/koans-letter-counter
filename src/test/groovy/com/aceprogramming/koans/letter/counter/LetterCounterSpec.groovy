@@ -1,6 +1,7 @@
 package com.aceprogramming.koans.letter.counter
 
 import spock.lang.Specification
+import spock.lang.Unroll
 
 
 class LetterCounterSpec extends Specification {
@@ -11,6 +12,7 @@ class LetterCounterSpec extends Specification {
         letterCounter != null
     }
 
+    @Unroll
     def "Check counted letters for #inputString"(String inputString, Map expectedResult) {
         expect:
         letterCounter.countUsage(inputString) == expectedResult
@@ -18,5 +20,6 @@ class LetterCounterSpec extends Specification {
         where:
         inputString | expectedResult
         ""          | [:]
+        "a"          | [((char)'a'):1]
     }
 }
