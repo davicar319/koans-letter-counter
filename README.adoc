@@ -188,3 +188,72 @@ his or her testing as well.
 
 Adding in the test for null causes my test to fail with a `NullPointerException` because
 neither of my initial implementations handle null so its time to fix both of them.
+
+To fix the `NullPointerException` problem in the initial `LetterCounterBase` implementation
+I wanted to stick with a solution that was similar in concept to what I had already done.
+Something that was just simple and effective even if it were verbose.  Here is the solution
+to the `LetterCounterBase`:
+
+.LetterCounterBase.java
+[source,java]
+----
+    public Map<Character, Integer> countUsage(String inputString) {
+        if(inputString == null) {
+            inputString = "";
+        }
+        HashMap<Character, Integer> result = new HashMap<>();
+        for (int i = 0; i < inputString.length(); i++) {
+            char c = inputString.charAt(i);
+            if (result.containsKey(c)) {
+                result.put(c, result.get(c) + 1);
+            } else {
+                result.put(c, 1);
+            }
+        }
+        return result;
+    }
+----
+
+I just placed a simple `if` check at the beginning that flips the null to the empty string, since
+I decided to handle nulls the same way as the empty string.  The solution is straight
+forward, but it also begins to show some of the problems with this overall approach in
+that the method is already getting long and verbose.  The cognitive load of the method
+is also starting to creep up to the point where I'm starting to feel the need to comment
+the code.  The overall solution while quick is clearly not the greatest.
+
+For the `LetterCounterRefinement1` implementation, the somewhat cleaner style of my
+initial approach led me to a cleaner and better way to handle the input null:
+
+.LetterCounterRefinement1.java
+[source,java]
+----
+public Map<Character, Integer> countUsage(String inputString) {
+        return inputString == null ? countLetters("") :
+                countLetters(inputString);
+    }
+
+    private static Map<Character, Integer> countLetters(String inputString) {
+        HashMap<Character, Integer> result = new HashMap<>();
+        for (int i = 0; i < inputString.length(); i++) {
+            char c = inputString.charAt(i);
+            int count = result.containsKey(c) ? result.get(c) + 1 : 1;
+            result.put(c, count);
+        }
+        return result;
+    }
+----
+
+Here we follow the _Clean Code_ rule:
+
+[quote, Robert C. Martin, 'Clean Code']
+____
+FUNCTIONS SHOULD DO ONE THING. THEY SHOULD DO IT WELL. THEY SHOULD DO IT ONLY.
+____
+
+The first method just handles the null situation.  It delegates everything else to a
+private method that does the real work of counting the letters.  This simple rule
+makes it transparently clear what the intent of the code is with no desire to add
+comments.
+
+With the nulls handled and the unit tests passing, I now want to explore how this could
+be implemented in other ways perhaps making better use of modern java features...
