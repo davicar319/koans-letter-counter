@@ -5,7 +5,8 @@ import spock.lang.Unroll
 
 
 class LetterCounterSpec extends Specification {
-    def letterCounters = [new LetterCounterBase(), new LetterCounterRefinement1()]
+    def letterCounters = [new LetterCounterBase(), new LetterCounterRefinement1(),
+                          new LetterCounterRefinement2()]
 
 
     def "A LetterCounter can be created"() {
