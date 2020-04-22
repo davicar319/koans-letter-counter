@@ -257,3 +257,29 @@ comments.
 
 With the nulls handled and the unit tests passing, I now want to explore how this could
 be implemented in other ways perhaps making better use of modern java features...
+
+== Using the Java 8 compute method on Map
+
+The first thing I noticed when I started surveying more modern Java techniques is that
+Java 8 added a compute method to Map. (https://docs.oracle.com/javase/8/docs/api/java/util/Map.html#compute-K-java.util.function.BiFunction-[Javadoc]).
+This method allows me to simplify the `LetterCoutnerRefinement1` implementation cutting two
+lines into one and makeing the code a tad bit cleaner:
+
+[source,java]
+----
+private static Map<Character, Integer> countLetters(String inputString) {
+        HashMap<Character, Integer> result = new HashMap<>();
+        for (int i = 0; i < inputString.length(); i++) {
+            char c = inputString.charAt(i);
+            result.compute(c, (k, v) -> (v == null) ? 1 : ++v);
+        }
+        return result;
+    }
+----
+
+While I don't care for `compute` as the name of the method much (since it is really mapping
+the value) I can live with it since it is the built in standard.  This certainly feels like
+a good step in the right direction.  The result of this change is that I moved the branch
+check for the value being null into the compute call which now executes that function and
+automatically puts the result.  Because compute passes a null value into the value fuction
+when the key is not in the map, everything works the same and we are golden.
