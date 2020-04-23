@@ -283,3 +283,157 @@ a good step in the right direction.  The result of this change is that I moved t
 check for the value being null into the compute call which now executes that function and
 automatically puts the result.  Because compute passes a null value into the value fuction
 when the key is not in the map, everything works the same and we are golden.
+
+== Using Java 8 Streams
+
+My next thought was to do this using the even more modern Java 8 Streams API.  The streams
+API gives us a great example of internal iteration that enables a much more functional style
+of programming.  By "internal iteration" I mean that the actual iteration is hidden from
+the developer and instead a function is passed in that operates on each element of a
+stream as those elements pass by.  This can have some nice benefits among them is very
+concise code and the potential for parallelism. Here is my first cut at using streams:
+
+[source, java]
+----
+package com.aceprogramming.koans.letter.counter;
+
+import java.util.Map;
+import java.util.stream.Collectors;
+
+final class LetterCounterRefinement3 implements LetterCounter{
+LetterCounterRefinement3() {
+
+    }
+
+    @Override
+    public Map<Character, Integer> countUsage(String inputString) {
+        return inputString.chars()
+                .mapToObj(c -> (char)c)
+                .collect(Collectors.groupingBy(c -> c, Collectors.summingInt(c -> 1)));
+
+    }
+}
+----
+
+There are a few of interesting things to note about this implementation.  First
+I had to use `Collectors.summingInt(c -> 1)` instead of `Collectors.counting()` because
+`counting` returns a `Long` where my interface requires an `Integer`.  I could have
+refactored the interface but I chose to keep it the same and find a method that does
+what I wanted it to even though it increases complexity a tiny bit.
+
+The second thing I find interesting is that even though the method length is much
+smaller, the solution is not as clearly readable as any of the previous ones. Usually
+less code means cleaner code, all other things being equal.  That (at least for me)
+is not true in this case.  Here are the things in my new stream based solution that I
+think are harmful to its readablity:
+
+ * calling `chars` on a string does not create a stream of Character or char.  It creates
+an IntStream which is a stream of int. This makes it necessary to do an odd cast in
+the `mapToObj` method.
+ * Even though I want the `mapToObj` method to map the ints in the streams to the
+`Character` object I still cast to a base type of (char).  There appears to be no
+clean way out of this
+ * The `Collectors.groupingBy` method does most of the work, but its not readably clear
+how to anyone who has not done functional group bys before.  It is also hard to reason
+about the types of the resultant map.
+
+The last thing I find interesting about this implemantion is that my unit tests don't
+pass. In particular I get a `NullPointerException` when I pass in a null string.
+So I'll need to fix that before commiting to git.
+
+=== Fixing the NullPointerException
+
+To fix the null pointer exception, I could follow the same pattern I did in
+`LetterCounterRefinement2` (and kind of in 1) but that really feels ugly.  I
+would have the same duplicate code in 3 places.  There is no excuse for that!!
+So to fix, I factor out the null check into its own class that then defers
+the actual letter counting to the real class.  I wrap the null check around
+the implementation allowing me to reuse it wherever I want.  Doing things this
+way also has the huge advantage of allowing a client to use the null safe version
+or the non-null safe version of an implementation easily.  This is an example of
+the https://www.baeldung.com/java-decorator-pattern[Decorator Pattern].
+
+To accomplish this I create a `NullSafeLetterCounter` that does nothing except the null
+check and then defers to the class that it wraps.  All I have done here is taken the
+first method out of LetterCounterRefinement2, parameterized it with the actual algorithm
+to call and put it in a class.  Here is the result:
+
+[source, java]
+----
+package com.aceprogramming.koans.letter.counter;
+
+import java.util.Map;
+import java.util.Objects;
+
+final class NullSafeLetterCounter implements LetterCounter {
+    private final LetterCounter letterCounter;
+
+    NullSafeLetterCounter(final LetterCounter letterCounter) {
+        this.letterCounter = Objects.requireNonNull(letterCounter, "The input letter counter cannot be null.");
+    }
+
+    @Override
+    public Map<Character, Integer> countUsage(String inputString) {
+        return inputString == null ? letterCounter.countUsage("")
+                : letterCounter.countUsage(inputString);
+    }
+}
+----
+
+Then I remove that functionality from the other `LetterCounter` implementations and
+change my unit test to use the null safe wrapper:
+
+[source, groovy]
+----
+package com.aceprogramming.koans.letter.counter
+
+import spock.lang.Specification
+import spock.lang.Unroll
+
+
+class LetterCounterSpec extends Specification {
+    def letterCounters = [new NullSafeLetterCounter(new LetterCounterBase()),
+                          new NullSafeLetterCounter(new LetterCounterRefinement1()),
+                          new NullSafeLetterCounter(new LetterCounterRefinement2()),
+                          new NullSafeLetterCounter(new LetterCounterRefinement3())]
+
+
+    def "A LetterCounter can be created"() {
+        expect:
+        letterCounters.each {assert(it != null)}
+    }
+
+    @Unroll
+    def "Check counted letters for #inputString"(String inputString, Map expectedResult) {
+        expect:
+        letterCounters.each {assert(it.countUsage(inputString) == expectedResult)}
+
+        where:
+        inputString | expectedResult
+        ""          | [:]
+        "a"         | [((char)'a'):1]
+        "aa"        | [((char)'a'):2]
+        "aab"       | [((char)'a'):2, ((char)'b'):1]
+        "aabccc"    | [((char)'a'):2, ((char)'b'):1, ((char)'c'):3]
+        "cabcac"    | [((char)'a'):2, ((char)'b'):1, ((char)'c'):3]
+        null        | [:]
+    }
+}
+----
+
+Note at this point I could factor out the test for just the null check and not have
+the repeaded call to new the `NullSafeLetterCounter`.  In a produciton system I would
+also provide a factory of some type to be able to create the various letter counters.
+That may be a good starting point for a different exercise.
+
+== Conclusion
+
+I started with a really simple problem to count the occurrences of letters in an
+arbitrary `String`.  I then created unit tests for the known requirements and implemented
+a quick solution to those unit tests as a baseline.  I then used that to iterate and refine
+the solution in order to explore some of the newer features of Java.  In the end I ended
+up with 4 pretty reasonable solutions to the problem and a bunch of new knowledge.
+
+As a note, my favorite implementation is `LetterCounterRefinement2` as I stated above
+I find the Java Streams API version to be less readable.  But that may be just a matter
+of taste and my age. :)

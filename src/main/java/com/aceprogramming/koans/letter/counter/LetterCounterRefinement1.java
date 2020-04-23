@@ -8,11 +8,6 @@ final class LetterCounterRefinement1 implements LetterCounter {
     }
 
     public Map<Character, Integer> countUsage(String inputString) {
-        return inputString == null ? countLetters("") :
-                countLetters(inputString);
-    }
-
-    private static Map<Character, Integer> countLetters(String inputString) {
         HashMap<Character, Integer> result = new HashMap<>();
         for (int i = 0; i < inputString.length(); i++) {
             char c = inputString.charAt(i);
